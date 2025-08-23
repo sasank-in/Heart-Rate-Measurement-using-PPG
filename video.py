@@ -51,6 +51,3 @@ class Video(object):
                        (65,220), cv2.FONT_HERSHEY_PLAIN, 2, col)
         return frame
         
-        
-        
-        

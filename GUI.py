@@ -18,15 +18,26 @@ class GUI(QMainWindow, QThread):
     def __init__(self):
         super(GUI,self).__init__()
         self.initUI()
-        self.webcam = Webcam()
-        self.video = Video()
-        self.input = self.webcam
-        self.dirname = ""
-        print("Input: webcam")
-        self.statusBar.showMessage("Input: webcam",5000)
-        self.btnOpen.setEnabled(False)
-        self.process = Process()
-        self.status = False
+        
+        try:
+            self.webcam = Webcam()
+            self.video = Video()
+            self.input = self.webcam
+            self.dirname = ""
+            print("Input: webcam")
+            self.statusBar.showMessage("Input: webcam",5000)
+            self.btnOpen.setEnabled(False)
+            
+            print("Initializing face detection...")
+            self.process = Process()
+            print("Face detection initialized successfully")
+            self.status = False
+        except Exception as e:
+            print(f"Error during initialization: {e}")
+            self.statusBar.showMessage(f"Error: {e}", 10000)
+            # Create a dummy process to prevent crashes
+            self.process = None
+            self.status = False
         self.frame = np.zeros((10,10,3),np.uint8)
         #self.plot = np.zeros((10,10,3),np.uint8)
         self.bpm = 0
@@ -122,11 +133,27 @@ class GUI(QMainWindow, QThread):
         
         
     def update(self):
-        self.signal_Plt.clear()
-        self.signal_Plt.plot(self.process.samples[20:],pen='g')
+        try:
+            self.signal_Plt.clear()
+            if self.process is not None and hasattr(self.process, 'samples') and len(self.process.samples) > 20:
+                self.signal_Plt.plot(self.process.samples[20:],pen='g')
+            else:
+                # Show empty plot or placeholder
+                self.signal_Plt.plot([0], pen='r')
 
-        self.fft_Plt.clear()
-        self.fft_Plt.plot(np.column_stack((self.process.freqs, self.process.fft)), pen = 'g')
+            self.fft_Plt.clear()
+            if self.process is not None and hasattr(self.process, 'freqs') and hasattr(self.process, 'fft'):
+                if len(self.process.freqs) > 0 and len(self.process.fft) > 0:
+                    self.fft_Plt.plot(np.column_stack((self.process.freqs, self.process.fft)), pen = 'g')
+                else:
+                    self.fft_Plt.plot([0], pen='r')
+            else:
+                self.fft_Plt.plot([0], pen='r')
+        except Exception as e:
+            print(f"Error in update: {e}")
+            # Clear plots on error
+            self.signal_Plt.clear()
+            self.fft_Plt.clear()
         
     def center(self):
         qr = self.frameGeometry()
@@ -197,69 +224,110 @@ class GUI(QMainWindow, QThread):
         self.lblDisplay.setStyleSheet("background-color: #000000")
 
     def main_loop(self):
-        frame = self.input.get_frame()
-
-        self.process.frame_in = frame
-        if self.terminate == False:
-            ret = self.process.run()
-        
-        # cv2.imshow("Processed", frame)
-        if ret == True:
-            self.frame = self.process.frame_out #get the frame to show in GUI
-            self.f_fr = self.process.frame_ROI #get the face to show in GUI
-            #print(self.f_fr.shape)
-            self.bpm = self.process.bpm #get the bpm change over the time
-        else:
-            self.frame = frame
+        try:
+            frame = self.input.get_frame()
+            
+            if self.process is None:
+                # If process failed to initialize, just show the frame
+                self.frame = frame
+                self.f_fr = np.zeros((10, 10, 3), np.uint8)
+                self.bpm = 0
+                ret = False
+            else:
+                self.process.frame_in = frame
+                if self.terminate == False:
+                    ret = self.process.run()
+                else:
+                    ret = False
+            
+            # cv2.imshow("Processed", frame)
+            if ret == True and self.process is not None:
+                self.frame = self.process.frame_out #get the frame to show in GUI
+                self.f_fr = self.process.frame_ROI #get the face to show in GUI
+                #print(self.f_fr.shape)
+                self.bpm = self.process.bpm #get the bpm change over the time
+            else:
+                self.frame = frame
+                self.f_fr = np.zeros((10, 10, 3), np.uint8)
+                self.bpm = 0
+        except Exception as e:
+            print(f"Error in main_loop: {e}")
+            # Fallback to showing just the input frame
+            try:
+                frame = self.input.get_frame()
+                self.frame = frame
+            except:
+                self.frame = np.zeros((480, 640, 3), np.uint8)
             self.f_fr = np.zeros((10, 10, 3), np.uint8)
             self.bpm = 0
         
-        self.frame = cv2.cvtColor(self.frame, cv2.COLOR_RGB2BGR)
-        cv2.putText(self.frame, "FPS "+str(float("{:.2f}".format(self.process.fps))),
-                       (20,460), cv2.FONT_HERSHEY_PLAIN, 1.5, (0, 255, 255),2)
-        img = QImage(self.frame, self.frame.shape[1], self.frame.shape[0], 
-                        self.frame.strides[0], QImage.Format_RGB888)
-        self.lblDisplay.setPixmap(QPixmap.fromImage(img))
-        
-        self.f_fr = cv2.cvtColor(self.f_fr, cv2.COLOR_RGB2BGR)
-        #self.lblROI.setGeometry(660,10,self.f_fr.shape[1],self.f_fr.shape[0])
-        self.f_fr = np.transpose(self.f_fr,(0,1,2)).copy()
-        f_img = QImage(self.f_fr, self.f_fr.shape[1], self.f_fr.shape[0], 
-                       self.f_fr.strides[0], QImage.Format_RGB888)
-        self.lblROI.setPixmap(QPixmap.fromImage(f_img))
-        
-        self.lblHR.setText("Freq: " + str(float("{:.2f}".format(self.bpm))))
-        
-        if self.process.bpms.__len__() >50:
-            if(max(self.process.bpms-np.mean(self.process.bpms))<5): #show HR if it is stable -the change is not over 5 bpm- for 3s
-                self.lblHR2.setText("Heart rate: " + str(float("{:.2f}".format(np.mean(self.process.bpms)))) + " bpm")
+        try:
+            self.frame = cv2.cvtColor(self.frame, cv2.COLOR_RGB2BGR)
+            fps_text = "FPS N/A"
+            if self.process is not None:
+                fps_text = "FPS "+str(float("{:.2f}".format(self.process.fps)))
+            cv2.putText(self.frame, fps_text,
+                           (20,460), cv2.FONT_HERSHEY_PLAIN, 1.5, (0, 255, 255),2)
+            img = QImage(self.frame, self.frame.shape[1], self.frame.shape[0], 
+                            self.frame.strides[0], QImage.Format_RGB888)
+            self.lblDisplay.setPixmap(QPixmap.fromImage(img))
+            
+            self.f_fr = cv2.cvtColor(self.f_fr, cv2.COLOR_RGB2BGR)
+            #self.lblROI.setGeometry(660,10,self.f_fr.shape[1],self.f_fr.shape[0])
+            self.f_fr = np.transpose(self.f_fr,(0,1,2)).copy()
+            f_img = QImage(self.f_fr, self.f_fr.shape[1], self.f_fr.shape[0], 
+                           self.f_fr.strides[0], QImage.Format_RGB888)
+            self.lblROI.setPixmap(QPixmap.fromImage(f_img))
+            
+            self.lblHR.setText("Freq: " + str(float("{:.1f}".format(self.bpm))))
+            
+            if self.process is not None and self.process.bpms.__len__() >50:
+                if(max(self.process.bpms-np.mean(self.process.bpms))<5): #show HR if it is stable -the change is not over 5 bpm- for 3s
+                    self.lblHR2.setText("Heart rate: " + str(float("{:.1f}".format(np.mean(self.process.bpms)))) + " bpm")
+        except Exception as e:
+            print(f"Error updating display: {e}")
+            # Show error message in GUI
+            self.lblHR.setText("Error: Face detection failed")
+            self.lblHR2.setText("Check console for details")
 
         #self.make_bpm_plot()#need to open a cv2.imshow() window to handle a pause 
         #QtTest.QTest.qWait(10)#wait for the GUI to respond
         self.key_handler()  #if not the GUI cant show anything
 
-    def run(self, input):
+    def run(self, checked=False):
         print("run")
         self.reset()
-        input = self.input
+        input_device = self.input  # Use the instance variable
         self.input.dirname = self.dirname
         if self.input.dirname == "" and self.input == self.video:
             print("choose a video first")
             #self.statusBar.showMessage("choose a video first",5000)
             return
         if self.status == False:
+            print("Starting camera and processing...")
             self.status = True
-            input.start()
+            input_device.start()
             self.btnStart.setText("Stop")
             self.cbbInput.setEnabled(False)
             self.btnOpen.setEnabled(False)
             self.lblHR2.clear()
+            print("Entering main processing loop...")
+            loop_count = 0
             while self.status == True:
+                loop_count += 1
+                if loop_count % 30 == 0:  # Print every 30 frames
+                    print(f"Processing loop iteration {loop_count}")
                 self.main_loop()
+                # Add a small delay to prevent GUI freezing
+                QApplication.processEvents()
+                if loop_count > 1000:  # Safety break
+                    print("Safety break - too many iterations")
+                    break
 
         elif self.status == True:
+            print("Stopping camera and processing...")
             self.status = False
-            input.stop()
+            input_device.stop()
             self.btnStart.setText("Start")
             self.cbbInput.setEnabled(True)
 

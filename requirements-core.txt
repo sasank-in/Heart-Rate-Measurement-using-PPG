@@ -1,0 +1,4 @@
+# Core requirements - minimal installation
+numpy>=1.22.0
+opencv-python>=4.5.0
+scipy>=1.10.0

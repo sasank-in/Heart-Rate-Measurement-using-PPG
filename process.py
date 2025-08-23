@@ -1,11 +1,43 @@
 import cv2
 import numpy as np
 import time
-from face_detection import FaceDetection
+# from face_detection import FaceDetection  # Integrated into face_utilities
 from scipy import signal
-from face_utilities import Face_utilities
+# Try to import face utilities with proper fallback
+Face_utilities = None
+DLIB_AVAILABLE = False
+
+try:
+    import dlib
+    from face_utilities import Face_utilities
+    DLIB_AVAILABLE = True
+    print("[INFO] Using dlib-based face detection")
+except ImportError:
+    try:
+        from face_utilities_opencv import Face_utilities_opencv as Face_utilities
+        DLIB_AVAILABLE = False
+        print("[WARNING] dlib not available, using OpenCV face detection")
+    except ImportError:
+        raise ImportError("No face detection module available. Install dlib or ensure face_utilities_opencv.py exists.")
 from signal_processing import Signal_processing
-from imutils import face_utils
+try:
+    from imutils import face_utils
+except ImportError:
+    # Provide fallback for face_utils.rect_to_bb
+    def rect_to_bb(rect):
+        if hasattr(rect, 'left'):
+            x = rect.left()
+            y = rect.top()
+            w = rect.right() - x
+            h = rect.bottom() - y
+        else:
+            x, y, w, h = rect
+        return (x, y, w, h)
+    
+    class face_utils:
+        @staticmethod
+        def rect_to_bb(rect):
+            return rect_to_bb(rect)
 # from sklearn.decomposition import FastICA
 
 class Process(object):
@@ -22,7 +54,7 @@ class Process(object):
         self.freqs = []
         self.t0 = time.time()
         self.bpm = 0
-        self.fd = FaceDetection()
+        # self.fd = FaceDetection()  # Now using face_utilities
         self.bpms = []
         self.peaks = []
         self.fu = Face_utilities()
@@ -48,7 +80,7 @@ class Process(object):
         rects, face, shape, aligned_face, aligned_shape = ret_process
 
         (x, y, w, h) = face_utils.rect_to_bb(rects[0])
-        cv2.rectangle(frame,(x,y),(x+w,y+h),(255,0,0),2)
+        cv2.rectangle(frame,(x,y),(x+w,y+h),(0,255,0),2)
         
         if(len(aligned_shape)==68):
             cv2.rectangle(aligned_face,(aligned_shape[54][0], aligned_shape[29][1]), #draw rectangle on right and left cheeks
@@ -85,7 +117,7 @@ class Process(object):
 
         g = green_val
         
-        if(abs(g-np.mean(self.data_buffer))>10 and L>99): #remove sudden change, if the avg value change is over 10, use the mean of the data_buffer
+        if(L > 10 and abs(g-np.mean(self.data_buffer[-10:]))>15): #remove sudden change, if the avg value change is over 15, use the last value
             g = self.data_buffer[-1]
         
         self.times.append(time.time() - self.t0)
@@ -181,35 +213,4 @@ class Process(object):
         return y 
     
 
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+ 
