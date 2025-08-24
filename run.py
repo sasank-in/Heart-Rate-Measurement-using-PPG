@@ -12,7 +12,7 @@ import time
 from process import Process
 from webcam import Webcam
 from video import Video
-from interface import waitKey, plotXY
+# Removed interface import - functions implemented inline
 
 class GUI(QMainWindow, QThread):
     def __init__(self):
@@ -208,7 +208,7 @@ class GUI(QMainWindow, QThread):
         """
         cv2 window must be focused for keypresses to be detected.
         """
-        self.pressed = waitKey(1) & 255  # wait for keypress for 10 ms
+        self.pressed = cv2.waitKey(1) & 255  # wait for keypress for 10 ms
         if self.pressed == 27:  # exit program on 'esc'
             print("[INFO] Exiting")
             self.webcam.stop()
