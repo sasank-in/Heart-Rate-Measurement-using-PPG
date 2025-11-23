@@ -3,41 +3,37 @@ import numpy as np
 import time
 # from face_detection import FaceDetection  # Integrated into face_utilities
 from scipy import signal
-# Try to import face utilities with proper fallback
+# Import face utilities - use enhanced OpenCV detection as primary, basic OpenCV as fallback
 Face_utilities = None
-DLIB_AVAILABLE = False
+ENHANCED_AVAILABLE = False
 
 try:
-    import dlib
-    from face_utilities import Face_utilities
-    DLIB_AVAILABLE = True
-    print("[INFO] Using dlib-based face detection")
+    from face_utilities_enhanced import Face_utilities_enhanced as Face_utilities
+    ENHANCED_AVAILABLE = True
+    print("[INFO] Using enhanced OpenCV-based face detection")
 except ImportError:
     try:
         from face_utilities_opencv import Face_utilities_opencv as Face_utilities
-        DLIB_AVAILABLE = False
-        print("[WARNING] dlib not available, using OpenCV face detection")
+        print("[INFO] Using basic OpenCV face detection")
     except ImportError:
-        raise ImportError("No face detection module available. Install dlib or ensure face_utilities_opencv.py exists.")
+        raise ImportError("No face detection module available. Please ensure OpenCV is installed.")
 from signal_processing import Signal_processing
-try:
-    from imutils import face_utils
-except ImportError:
-    # Provide fallback for face_utils.rect_to_bb
+
+# Simple rect_to_bb function
+def rect_to_bb(rect):
+    if hasattr(rect, 'left'):
+        x = rect.left()
+        y = rect.top()
+        w = rect.right() - x
+        h = rect.bottom() - y
+    else:
+        x, y, w, h = rect
+    return (x, y, w, h)
+
+class face_utils:
+    @staticmethod
     def rect_to_bb(rect):
-        if hasattr(rect, 'left'):
-            x = rect.left()
-            y = rect.top()
-            w = rect.right() - x
-            h = rect.bottom() - y
-        else:
-            x, y, w, h = rect
-        return (x, y, w, h)
-    
-    class face_utils:
-        @staticmethod
-        def rect_to_bb(rect):
-            return rect_to_bb(rect)
+        return rect_to_bb(rect)
 # from sklearn.decomposition import FastICA
 
 class Process(object):
@@ -74,7 +70,10 @@ class Process(object):
         # frame, face_frame, ROI1, ROI2, status, mask = self.fd.face_detect(self.frame_in)
         
         frame = self.frame_in
-        ret_process = self.fu.no_age_gender_face_process(frame, "5")
+        
+        # Use appropriate landmark type based on available detection method
+        landmark_type = "enhanced" if ENHANCED_AVAILABLE else "5"
+        ret_process = self.fu.no_age_gender_face_process(frame, landmark_type)
         if ret_process is None:
             return False
         rects, face, shape, aligned_face, aligned_shape = ret_process
@@ -82,21 +81,40 @@ class Process(object):
         (x, y, w, h) = face_utils.rect_to_bb(rects[0])
         cv2.rectangle(frame,(x,y),(x+w,y+h),(0,255,0),2)
         
-        if(len(aligned_shape)==68):
-            cv2.rectangle(aligned_face,(aligned_shape[54][0], aligned_shape[29][1]), #draw rectangle on right and left cheeks
-                    (aligned_shape[12][0],aligned_shape[33][1]), (0,255,0), 0)
-            cv2.rectangle(aligned_face, (aligned_shape[4][0], aligned_shape[29][1]), 
-                    (aligned_shape[48][0],aligned_shape[33][1]), (0,255,0), 0)
-        else:
-            cv2.rectangle(aligned_face, (aligned_shape[0][0],int((aligned_shape[4][1] + aligned_shape[2][1])/2)),
-                        (aligned_shape[1][0],aligned_shape[4][1]), (0,255,0), 0)
+        # Handle different landmark formats
+        if ENHANCED_AVAILABLE and aligned_shape is not None and len(aligned_shape) == 7:
+            # Enhanced landmarks (7 points) - draw key facial features and ROI regions
+            # Draw all landmarks
+            for i, (x, y) in enumerate(aligned_shape):
+                color = (0, 0, 255) if i < 5 else (255, 0, 0)  # Red for main points, blue for cheeks
+                cv2.circle(aligned_face, (x, y), 2, color, -1)
             
-            cv2.rectangle(aligned_face, (aligned_shape[2][0],int((aligned_shape[4][1] + aligned_shape[2][1])/2)),
-                        (aligned_shape[3][0],aligned_shape[4][1]), (0,255,0), 0)
-        
-        for (x, y) in aligned_shape: 
-            cv2.circle(aligned_face, (x, y), 1, (0, 0, 255), -1)
-
+            # Draw ROI regions for cheeks
+            roi_size = 20
+            # Left cheek ROI
+            left_cheek = aligned_shape[5]
+            cv2.rectangle(aligned_face, 
+                        (left_cheek[0] - roi_size, left_cheek[1] - roi_size),
+                        (left_cheek[0] + roi_size, left_cheek[1] + roi_size), 
+                        (0, 255, 0), 2)
+            
+            # Right cheek ROI
+            right_cheek = aligned_shape[6]
+            cv2.rectangle(aligned_face, 
+                        (right_cheek[0] - roi_size, right_cheek[1] - roi_size),
+                        (right_cheek[0] + roi_size, right_cheek[1] + roi_size), 
+                        (0, 255, 0), 2)
+        else:
+            # Basic 5-point landmarks (OpenCV)
+            if aligned_shape is not None and len(aligned_shape) >= 5:
+                cv2.rectangle(aligned_face, (aligned_shape[0][0],int((aligned_shape[4][1] + aligned_shape[2][1])/2)),
+                            (aligned_shape[1][0],aligned_shape[4][1]), (0,255,0), 0)
+                
+                cv2.rectangle(aligned_face, (aligned_shape[2][0],int((aligned_shape[4][1] + aligned_shape[2][1])/2)),
+                            (aligned_shape[3][0],aligned_shape[4][1]), (0,255,0), 0)
+                
+                for (x, y) in aligned_shape: 
+                    cv2.circle(aligned_face, (x, y), 1, (0, 0, 255), -1)
 
         ROIs = self.fu.ROI_extraction(aligned_face, aligned_shape)
         green_val = self.sp.extract_color(ROIs)

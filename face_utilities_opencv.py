@@ -6,7 +6,6 @@ This version doesn't require dlib and works with just OpenCV.
 
 import cv2
 import numpy as np
-from collections import OrderedDict
 
 
 class Face_utilities_opencv:

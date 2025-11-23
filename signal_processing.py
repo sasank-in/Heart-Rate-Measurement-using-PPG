@@ -11,14 +11,31 @@ class Signal_processing():
     def extract_color(self, ROIs):
         '''
         extract average value of green color from ROIs
+        Enhanced for MediaPipe ROI processing
         '''
         
-        #r = np.mean(ROI[:,:,0])
         g = []
         for ROI in ROIs:
-            g.append(np.mean(ROI[:,:,1]))
-        #b = np.mean(ROI[:,:,2])
-        #return r, g, b
+            if ROI is not None and ROI.size > 0:
+                # For masked ROIs, only consider non-zero pixels
+                if len(ROI.shape) == 3:
+                    # Check if this is a masked ROI (has black pixels from masking)
+                    non_zero_mask = np.any(ROI != [0, 0, 0], axis=2)
+                    if np.any(non_zero_mask):
+                        # Extract green channel from non-zero pixels only
+                        green_values = ROI[:, :, 1][non_zero_mask]
+                        if len(green_values) > 0:
+                            g.append(np.mean(green_values))
+                    else:
+                        # Fallback to simple mean if no masking detected
+                        g.append(np.mean(ROI[:, :, 1]))
+                else:
+                    # Grayscale ROI
+                    g.append(np.mean(ROI))
+        
+        if len(g) == 0:
+            return 0  # Return 0 if no valid ROIs found
+        
         output_val = np.mean(g)
         return output_val
     

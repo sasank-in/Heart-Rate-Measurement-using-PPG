@@ -5,11 +5,12 @@ A real-time heart rate monitoring system that uses computer vision to detect hea
 ## Features
 
 - **Real-time heart rate detection** from webcam feed
-- **OpenCV-based face detection** (no complex dependencies)
+- **Enhanced OpenCV-based face detection** with improved 7-point landmarks
+- **Fallback support** for basic OpenCV detection
 - **Live signal visualization** with frequency analysis
 - **User-friendly GUI** with PyQt5
 - **Video file support** for offline analysis
-- **Minimal dependencies** for easy installation
+- **Enhanced ROI extraction** using precise facial landmarks
 
 ## How It Works
 
@@ -27,16 +28,28 @@ The system uses photoplethysmography (PPG) principles:
 - Webcam or camera device
 
 ### Install Dependencies
+
+**Minimal Installation (Recommended):**
 ```bash
 pip install -r requirements-core.txt
 ```
 
+**Full Installation (Maximum Accuracy):**
+```bash
+pip install -r requirements-full.txt
+```
+
+**Manual Installation:**
+```bash
+pip install numpy opencv-python scipy pyqt5 pyqtgraph
+```
+
 ### Required Packages
-- OpenCV (`cv2`)
-- NumPy
-- SciPy
-- PyQt5
-- pyqtgraph
+- **OpenCV** (`cv2`) - computer vision and face detection
+- **NumPy** - numerical computing
+- **SciPy** - signal processing
+- **PyQt5** - GUI framework
+- **pyqtgraph** - real-time plotting
 
 ## Usage
 
@@ -62,23 +75,27 @@ python run.py
 ## Project Structure
 
 ```
-├── run.py                    # Main GUI application
-├── process.py               # Heart rate processing logic
-├── face_utilities_opencv.py # Face detection using OpenCV
-├── signal_processing.py     # Signal processing algorithms
-├── config.py               # Configuration settings
-├── webcam.py               # Camera interface
-├── video.py                # Video file interface
-├── requirements-core.txt   # Dependencies
-└── README.md              # This file
+├── run.py                      # Main GUI application
+├── process.py                 # Heart rate processing logic
+├── face_utilities_enhanced.py # Enhanced OpenCV detection (7 landmarks)
+├── face_utilities_opencv.py   # Basic OpenCV face detection (fallback)
+├── signal_processing.py       # Signal processing algorithms
+├── webcam.py                 # Camera interface
+├── video.py                  # Video file interface
+├── models/                   # Model files directory
+├── requirements-core.txt     # Dependencies
+├── requirements-full.txt     # Same as core (simplified)
+└── README.md                # This file
 ```
 
 ## Technical Details
 
 ### Face Detection
-- Uses OpenCV Haar cascades for face detection
-- No dlib dependency required
-- Automatic face tracking and ROI extraction
+- **Primary**: Enhanced OpenCV detection with 7-point landmarks
+- **Fallback**: Basic OpenCV Haar cascades (5-point landmarks)
+- **Enhanced ROI extraction** using precise cheek region mapping
+- **Improved accuracy** with landmark-based face alignment and better eye detection
+- **Real-time performance** optimized for live video with minimal dependencies
 
 ### Signal Processing
 - Bandpass filtering (0.8-3 Hz for heart rate range)
@@ -147,11 +164,20 @@ This project is for educational and research purposes. Not intended for medical 
 - PyQt5 for GUI framework
 - Scientific Python community for signal processing libraries
 
+## Testing
+
+The application can be tested by running the main GUI:
+```bash
+python run.py
+```
+
 ## Version History
 
 - **v1.0**: Initial release with dlib dependency
 - **v2.0**: OpenCV-based face detection, simplified installation
 - **v2.1**: Cleaned codebase, improved stability
+- **v3.0**: Enhanced OpenCV detection with improved 7-point landmarks
+- **v3.2**: Simplified codebase with reliable OpenCV-only face detection
 
 ---
 

@@ -315,8 +315,6 @@ class GUI(QMainWindow, QThread):
             loop_count = 0
             while self.status == True:
                 loop_count += 1
-                if loop_count % 30 == 0:  # Print every 30 frames
-                    print(f"Processing loop iteration {loop_count}")
                 self.main_loop()
                 # Add a small delay to prevent GUI freezing
                 QApplication.processEvents()
