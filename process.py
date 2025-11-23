@@ -3,20 +3,32 @@ import numpy as np
 import time
 # from face_detection import FaceDetection  # Integrated into face_utilities
 from scipy import signal
-# Import face utilities - use enhanced OpenCV detection as primary, basic OpenCV as fallback
-Face_utilities = None
-ENHANCED_AVAILABLE = False
-
+# Import face utilities - MediaPipe only
 try:
-    from face_utilities_enhanced import Face_utilities_enhanced as Face_utilities
-    ENHANCED_AVAILABLE = True
-    print("[INFO] Using enhanced OpenCV-based face detection")
-except ImportError:
-    try:
-        from face_utilities_opencv import Face_utilities_opencv as Face_utilities
-        print("[INFO] Using basic OpenCV face detection")
-    except ImportError:
-        raise ImportError("No face detection module available. Please ensure OpenCV is installed.")
+    from face_utilities_mediapipe import Face_utilities_mediapipe as Face_utilities, MEDIAPIPE_AVAILABLE
+    
+    if not MEDIAPIPE_AVAILABLE:
+        raise ImportError("MediaPipe failed to load (DLL error)")
+    
+    DETECTION_METHOD = "mediapipe"
+    print("[INFO] Using MediaPipe face detection with age/gender detection")
+except ImportError as e:
+    print(f"[ERROR] MediaPipe is required but not available: {e}")
+    print("\n" + "="*70)
+    print("MEDIAPIPE INSTALLATION REQUIRED")
+    print("="*70)
+    print("\nThis application requires MediaPipe for face detection.")
+    print("\nTroubleshooting steps:")
+    print("1. Install Visual C++ Redistributable:")
+    print("   https://aka.ms/vs/17/release/vc_redist.x64.exe")
+    print("\n2. Reinstall MediaPipe:")
+    print("   pip uninstall mediapipe")
+    print("   pip install mediapipe==0.10.13")
+    print("\n3. If using Python 3.12, try Python 3.11 instead")
+    print("   (MediaPipe works best with Python 3.8-3.11)")
+    print("\n4. Restart your computer after installing Visual C++")
+    print("="*70 + "\n")
+    raise ImportError("MediaPipe is required. See troubleshooting steps above.")
 from signal_processing import Signal_processing
 
 # Simple rect_to_bb function
@@ -50,13 +62,14 @@ class Process(object):
         self.freqs = []
         self.t0 = time.time()
         self.bpm = 0
-        # self.fd = FaceDetection()  # Now using face_utilities
         self.bpms = []
         self.peaks = []
         self.fu = Face_utilities()
         self.sp = Signal_processing()
-
-        #self.red = np.zeros((256,256,3),np.uint8)
+        
+        # Age and gender detection
+        self.age = None
+        self.gender = None
         
     def extractColor(self, frame):
         
@@ -71,18 +84,21 @@ class Process(object):
         
         frame = self.frame_in
         
-        # Use appropriate landmark type based on available detection method
-        landmark_type = "enhanced" if ENHANCED_AVAILABLE else "5"
-        ret_process = self.fu.no_age_gender_face_process(frame, landmark_type)
+        # Use MediaPipe for face detection with age/gender
+        ret_process = self.fu.face_process(frame, "mediapipe")
         if ret_process is None:
             return False
-        rects, face, shape, aligned_face, aligned_shape = ret_process
+        rects, face, shape, aligned_face, aligned_shape, age, gender = ret_process
+        
+        # Store age and gender
+        self.age = age
+        self.gender = gender
 
         (x, y, w, h) = face_utils.rect_to_bb(rects[0])
         cv2.rectangle(frame,(x,y),(x+w,y+h),(0,255,0),2)
         
-        # Handle different landmark formats
-        if ENHANCED_AVAILABLE and aligned_shape is not None and len(aligned_shape) == 7:
+        # Handle MediaPipe landmarks (7 points)
+        if aligned_shape is not None and len(aligned_shape) == 7:
             # Enhanced landmarks (7 points) - draw key facial features and ROI regions
             # Draw all landmarks
             for i, (x, y) in enumerate(aligned_shape):
@@ -104,17 +120,7 @@ class Process(object):
                         (right_cheek[0] - roi_size, right_cheek[1] - roi_size),
                         (right_cheek[0] + roi_size, right_cheek[1] + roi_size), 
                         (0, 255, 0), 2)
-        else:
-            # Basic 5-point landmarks (OpenCV)
-            if aligned_shape is not None and len(aligned_shape) >= 5:
-                cv2.rectangle(aligned_face, (aligned_shape[0][0],int((aligned_shape[4][1] + aligned_shape[2][1])/2)),
-                            (aligned_shape[1][0],aligned_shape[4][1]), (0,255,0), 0)
-                
-                cv2.rectangle(aligned_face, (aligned_shape[2][0],int((aligned_shape[4][1] + aligned_shape[2][1])/2)),
-                            (aligned_shape[3][0],aligned_shape[4][1]), (0,255,0), 0)
-                
-                for (x, y) in aligned_shape: 
-                    cv2.circle(aligned_face, (x, y), 1, (0, 0, 255), -1)
+
 
         ROIs = self.fu.ROI_extraction(aligned_face, aligned_shape)
         green_val = self.sp.extract_color(ROIs)
@@ -216,6 +222,8 @@ class Process(object):
         self.t0 = time.time()
         self.bpm = 0
         self.bpms = []
+        self.age = None
+        self.gender = None
         
     def butter_bandpass(self, lowcut, highcut, fs, order=5):
         nyq = 0.5 * fs

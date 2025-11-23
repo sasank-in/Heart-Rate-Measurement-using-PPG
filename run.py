@@ -1,18 +1,33 @@
+# Import MediaPipe-dependent modules FIRST to avoid DLL conflicts
+import sys
+import time
+
+# Try to import process module (which loads MediaPipe)
+try:
+    from process import Process
+except ImportError as e:
+    print("\n" + "="*70)
+    print("CRITICAL ERROR: Cannot start application")
+    print("="*70)
+    print(f"\nError: {e}")
+    print("\nThe application requires MediaPipe but it failed to load.")
+    print("This is usually due to missing Visual C++ Redistributable on Windows.")
+    print("\nPlease see MEDIAPIPE_TROUBLESHOOTING.md for solutions.")
+    print("="*70 + "\n")
+    input("Press Enter to exit...")
+    sys.exit(1)
+
+# Now import other modules
 import cv2
 import numpy as np
 from PyQt5 import QtCore
-
 from PyQt5.QtCore import QThread
 from PyQt5.QtGui import QFont, QImage, QPixmap
 from PyQt5.QtWidgets import QPushButton, QApplication, QComboBox, QLabel, QFileDialog, QStatusBar, QDesktopWidget, QMessageBox, QMainWindow
-
 import pyqtgraph as pg
-import sys
-import time
-from process import Process
+
 from webcam import Webcam
 from video import Video
-# Removed interface import - functions implemented inline
 
 class GUI(QMainWindow, QThread):
     def __init__(self):
@@ -93,15 +108,20 @@ class GUI(QMainWindow, QThread):
         self.lblHR2.setFont(font)
         self.lblHR2.setText("Heart rate: ")
         
-        # self.lbl_Age = QLabel(self) #label to show stable HR
-        # self.lbl_Age.setGeometry(900,120,300,40)
-        # self.lbl_Age.setFont(font)
-        # self.lbl_Age.setText("Age: ")
+        self.lbl_Age = QLabel(self) #label to show age range
+        self.lbl_Age.setGeometry(900,120,300,40)
+        self.lbl_Age.setFont(font)
+        self.lbl_Age.setText("Age: ")
         
-        # self.lbl_Gender = QLabel(self) #label to show stable HR
-        # self.lbl_Gender.setGeometry(900,170,300,40)
-        # self.lbl_Gender.setFont(font)
-        # self.lbl_Gender.setText("Gender: ")
+        self.lbl_Gender = QLabel(self) #label to show gender
+        self.lbl_Gender.setGeometry(900,170,300,40)
+        self.lbl_Gender.setFont(font)
+        self.lbl_Gender.setText("Gender: ")
+        
+        self.lblDetectionMethod = QLabel(self) #label to show detection method
+        self.lblDetectionMethod.setGeometry(900,220,300,40)
+        self.lblDetectionMethod.setFont(font)
+        self.lblDetectionMethod.setText("Detection: MediaPipe")
         
         #dynamic plot
         self.signal_Plt = pg.PlotWidget(self)
@@ -219,9 +239,13 @@ class GUI(QMainWindow, QThread):
         #self.statusBar.showMessage("File name: " + self.dirname,5000)
     
     def reset(self):
-        self.process.reset()
+        if self.process is not None:
+            self.process.reset()
         self.lblDisplay.clear()
         self.lblDisplay.setStyleSheet("background-color: #000000")
+        self.lbl_Age.setText("Age: ")
+        self.lbl_Gender.setText("Gender: ")
+        self.lblDetectionMethod.setText("Detection: MediaPipe")
 
     def main_loop(self):
         try:
@@ -281,6 +305,18 @@ class GUI(QMainWindow, QThread):
             
             self.lblHR.setText("Freq: " + str(float("{:.1f}".format(self.bpm))))
             
+            # Display age and gender
+            if self.process is not None:
+                if self.process.age is not None:
+                    self.lbl_Age.setText(f"Age: {self.process.age}")
+                else:
+                    self.lbl_Age.setText("Age: Detecting...")
+                
+                if self.process.gender is not None:
+                    self.lbl_Gender.setText(f"Gender: {self.process.gender}")
+                else:
+                    self.lbl_Gender.setText("Gender: Detecting...")
+            
             if self.process is not None and self.process.bpms.__len__() >50:
                 if(max(self.process.bpms-np.mean(self.process.bpms))<5): #show HR if it is stable -the change is not over 5 bpm- for 3s
                     self.lblHR2.setText("Heart rate: " + str(float("{:.1f}".format(np.mean(self.process.bpms)))) + " bpm")
@@ -311,6 +347,8 @@ class GUI(QMainWindow, QThread):
             self.cbbInput.setEnabled(False)
             self.btnOpen.setEnabled(False)
             self.lblHR2.clear()
+            self.lbl_Age.setText("Age: Detecting...")
+            self.lbl_Gender.setText("Gender: Detecting...")
             print("Entering main processing loop...")
             loop_count = 0
             while self.status == True:

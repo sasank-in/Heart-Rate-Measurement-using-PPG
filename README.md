@@ -5,12 +5,12 @@ A real-time heart rate monitoring system that uses computer vision to detect hea
 ## Features
 
 - **Real-time heart rate detection** from webcam feed
-- **Enhanced OpenCV-based face detection** with improved 7-point landmarks
-- **Fallback support** for basic OpenCV detection
+- **MediaPipe face detection** with 468 high-accuracy facial landmarks
+- **Age and gender detection** using deep learning models
 - **Live signal visualization** with frequency analysis
 - **User-friendly GUI** with PyQt5
 - **Video file support** for offline analysis
-- **Enhanced ROI extraction** using precise facial landmarks
+- **Precise ROI extraction** using MediaPipe facial landmarks
 
 ## How It Works
 
@@ -21,31 +21,40 @@ The system uses photoplethysmography (PPG) principles:
 4. **Signal Processing**: Applies filtering and FFT analysis
 5. **Heart Rate Calculation**: Determines BPM from frequency peaks
 
+## Quick Start
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Download age/gender models (first time only)
+python download_age_gender_models.py
+
+# Run application
+python run.py
+```
+
 ## Installation
 
 ### Prerequisites
-- Python 3.7 or higher
+- Python 3.7 or higher (3.8-3.11 recommended for MediaPipe)
 - Webcam or camera device
 
 ### Install Dependencies
 
-**Minimal Installation (Recommended):**
+**Recommended Installation:**
 ```bash
-pip install -r requirements-core.txt
-```
-
-**Full Installation (Maximum Accuracy):**
-```bash
-pip install -r requirements-full.txt
+pip install -r requirements.txt
 ```
 
 **Manual Installation:**
 ```bash
-pip install numpy opencv-python scipy pyqt5 pyqtgraph
+pip install numpy opencv-python scipy pyqt5 pyqtgraph mediapipe
 ```
 
 ### Required Packages
-- **OpenCV** (`cv2`) - computer vision and face detection
+- **MediaPipe** - face detection with 468 landmarks (required)
+- **OpenCV** (`cv2`) - computer vision and age/gender detection models
 - **NumPy** - numerical computing
 - **SciPy** - signal processing
 - **PyQt5** - GUI framework
@@ -63,7 +72,11 @@ python run.py
 2. **Click "Start"** to begin heart rate detection
 3. **Position your face** in the camera view with good lighting
 4. **Wait 10-15 seconds** for measurements to stabilize
-5. **View results** in the heart rate display and signal plots
+5. **View results** including:
+   - Real-time heart rate (BPM)
+   - Age range estimation
+   - Gender detection
+   - Signal and FFT plots
 
 ### Tips for Best Results
 - **Good lighting**: Ensure your face is well-lit
@@ -77,25 +90,33 @@ python run.py
 ```
 ├── run.py                      # Main GUI application
 ├── process.py                 # Heart rate processing logic
-├── face_utilities_enhanced.py # Enhanced OpenCV detection (7 landmarks)
-├── face_utilities_opencv.py   # Basic OpenCV face detection (fallback)
+├── face_utilities_mediapipe.py # MediaPipe face detection with age/gender
 ├── signal_processing.py       # Signal processing algorithms
 ├── webcam.py                 # Camera interface
 ├── video.py                  # Video file interface
-├── models/                   # Model files directory
-├── requirements-core.txt     # Dependencies
-├── requirements-full.txt     # Same as core (simplified)
+├── models/                   # Age and gender detection models
+│   ├── age_deploy.prototxt
+│   ├── age_net.caffemodel
+│   ├── gender_deploy.prototxt
+│   └── gender_net.caffemodel
+├── requirements.txt          # Dependencies
 └── README.md                # This file
 ```
 
 ## Technical Details
 
 ### Face Detection
-- **Primary**: Enhanced OpenCV detection with 7-point landmarks
-- **Fallback**: Basic OpenCV Haar cascades (5-point landmarks)
-- **Enhanced ROI extraction** using precise cheek region mapping
-- **Improved accuracy** with landmark-based face alignment and better eye detection
-- **Real-time performance** optimized for live video with minimal dependencies
+- **MediaPipe Face Mesh** with 468 high-accuracy landmarks
+- **ML-based detection** trained on diverse datasets
+- **Precise ROI extraction** using cheek region landmarks (indices 205, 425)
+- **Real-time performance** optimized for live video processing
+- **Robust tracking** handles head rotation and varying lighting
+
+### Age and Gender Detection
+- **Deep learning models** using OpenCV DNN
+- **Age ranges**: (0-2), (4-6), (8-12), (15-20), (25-32), (38-43), (48-53), (60-100)
+- **Gender classification**: Male/Female
+- **Real-time prediction** from detected face region
 
 ### Signal Processing
 - Bandpass filtering (0.8-3 Hz for heart rate range)
@@ -110,6 +131,18 @@ python run.py
 
 ## Troubleshooting
 
+### MediaPipe Installation Issues
+If you see "DLL load failed" errors on Windows:
+- Install Visual C++ Redistributable: https://aka.ms/vs/17/release/vc_redist.x64.exe
+- Restart your computer after installation
+- Python 3.8-3.11 recommended (3.12 may have compatibility issues)
+
+### Age/Gender Models
+If age/gender detection doesn't work:
+- Run: `python download_age_gender_models.py`
+- Models will be downloaded to the `models/` folder
+- Restart the application
+
 ### Camera Issues
 - **Camera not detected**: Check if camera is connected and not used by other apps
 - **Permission denied**: Ensure camera permissions are granted
@@ -118,11 +151,11 @@ python run.py
 ### Face Detection Issues
 - **No face detected**: Improve lighting and face positioning
 - **Unstable detection**: Keep head still and ensure clear face view
-- **Multiple faces**: System uses the largest detected face
+- **Age/Gender not showing**: Wait a few seconds for detection to stabilize
 
 ### Heart Rate Issues
 - **Erratic readings**: Ensure stable lighting and minimal movement
-- **No heart rate**: Wait longer for signal stabilization
+- **No heart rate**: Wait longer for signal stabilization (10-15 seconds)
 - **Inaccurate readings**: Check lighting conditions and face positioning
 
 ## System Requirements
@@ -164,20 +197,35 @@ This project is for educational and research purposes. Not intended for medical 
 - PyQt5 for GUI framework
 - Scientific Python community for signal processing libraries
 
-## Testing
+## Running the Application
 
-The application can be tested by running the main GUI:
 ```bash
 python run.py
 ```
 
-## Version History
+Expected console output:
+```
+[INFO] Using MediaPipe face detection with age/gender detection
+[INFO] Age detection model loaded
+[INFO] Gender detection model loaded
+[INFO] MediaPipe face detection initialized
+```
 
-- **v1.0**: Initial release with dlib dependency
-- **v2.0**: OpenCV-based face detection, simplified installation
-- **v2.1**: Cleaned codebase, improved stability
-- **v3.0**: Enhanced OpenCV detection with improved 7-point landmarks
-- **v3.2**: Simplified codebase with reliable OpenCV-only face detection
+Note: You may see harmless warnings from TensorFlow/MediaPipe - these can be ignored.
+
+## Documentation
+
+- **[USAGE.md](USAGE.md)** - Detailed usage instructions
+- **[MEDIAPIPE_TROUBLESHOOTING.md](MEDIAPIPE_TROUBLESHOOTING.md)** - MediaPipe installation help
+
+## Version
+
+**Current Version**: 5.0
+
+- MediaPipe face detection (468 landmarks)
+- Real-time heart rate monitoring
+- Age and gender detection
+- Signal visualization
 
 ---
 
