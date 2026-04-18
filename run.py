@@ -54,7 +54,6 @@ class GUI(QMainWindow, QThread):
             self.process = None
             self.status = False
         self.frame = np.zeros((10,10,3),np.uint8)
-        #self.plot = np.zeros((10,10,3),np.uint8)
         self.bpm = 0
         self.terminate = False
         
@@ -187,7 +186,6 @@ class GUI(QMainWindow, QThread):
         if reply == QMessageBox.Yes:
             event.accept()
             self.input.stop()
-            # cv2.destroyAllWindows()
             self.terminate = True
             sys.exit()
 
@@ -200,29 +198,10 @@ class GUI(QMainWindow, QThread):
             self.input = self.webcam
             print("Input: webcam")
             self.btnOpen.setEnabled(False)
-            #self.statusBar.showMessage("Input: webcam",5000)
         elif self.cbbInput.currentIndex() == 1:
             self.input = self.video
             print("Input: video")
             self.btnOpen.setEnabled(True)
-            #self.statusBar.showMessage("Input: video",5000)   
-    
-    # def make_bpm_plot(self):
-        # plotXY([[self.process.times[20:],
-                     # self.process.samples[20:]],
-                    # [self.process.freqs,
-                     # self.process.fft]],
-                    # labels=[False, True],
-                    # showmax=[False, "bpm"],
-                    # label_ndigits=[0, 0],
-                    # showmax_digits=[0, 1],
-                    # skip=[3, 3],
-                    # name="Plot",
-                    # bg=None)
-        
-        # fplot = QImage(self.plot, 640, 280, QImage.Format_RGB888)
-        # self.lblPlot.setGeometry(10,520,640,280)
-        # self.lblPlot.setPixmap(QPixmap.fromImage(fplot))
     
     def key_handler(self):
         """
@@ -236,7 +215,6 @@ class GUI(QMainWindow, QThread):
     
     def openFileDialog(self):
         self.dirname = QFileDialog.getOpenFileName(self, 'OpenFile')
-        #self.statusBar.showMessage("File name: " + self.dirname,5000)
     
     def reset(self):
         if self.process is not None:
@@ -337,7 +315,6 @@ class GUI(QMainWindow, QThread):
         self.input.dirname = self.dirname
         if self.input.dirname == "" and self.input == self.video:
             print("choose a video first")
-            #self.statusBar.showMessage("choose a video first",5000)
             return
         if self.status == False:
             print("Starting camera and processing...")
@@ -350,15 +327,9 @@ class GUI(QMainWindow, QThread):
             self.lbl_Age.setText("Age: Detecting...")
             self.lbl_Gender.setText("Gender: Detecting...")
             print("Entering main processing loop...")
-            loop_count = 0
             while self.status == True:
-                loop_count += 1
                 self.main_loop()
-                # Add a small delay to prevent GUI freezing
                 QApplication.processEvents()
-                if loop_count > 1000:  # Safety break
-                    print("Safety break - too many iterations")
-                    break
 
         elif self.status == True:
             print("Stopping camera and processing...")

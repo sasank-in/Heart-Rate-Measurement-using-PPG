@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 import time
-# from face_detection import FaceDetection  # Integrated into face_utilities
 from scipy import signal
 # Import face utilities - MediaPipe only
 try:
@@ -46,7 +45,7 @@ class face_utils:
     @staticmethod
     def rect_to_bb(rect):
         return rect_to_bb(rect)
-# from sklearn.decomposition import FastICA
+
 
 class Process(object):
     def __init__(self):
@@ -80,8 +79,6 @@ class Process(object):
         return g
         
     def run(self):
-        # frame, face_frame, ROI1, ROI2, status, mask = self.fd.face_detect(self.frame_in)
-        
         frame = self.frame_in
         
         # Use MediaPipe for face detection with age/gender
@@ -127,17 +124,8 @@ class Process(object):
 
         self.frame_out = frame
         self.frame_ROI = aligned_face
-        
-        # g1 = self.extractColor(ROI1)
-        # g2 = self.extractColor(ROI2)
-        #g3 = self.extractColor(ROI3)
-        
+
         L = len(self.data_buffer)
-        
-        #calculate average green value of 2 ROIs
-        #r = (r1+r2)/2
-        #g = (g1+g2)/2
-        #b = (b1+b2)/2
 
         g = green_val
         
@@ -181,32 +169,16 @@ class Process(object):
             pruned = self.fft[idx]
             pfreq = freqs[idx]
             
-            self.freqs = pfreq 
+            self.freqs = pfreq
             self.fft = pruned
-            
-            idx2 = np.argmax(pruned)#max in the range can be HR
-            
+
+            idx2 = np.argmax(pruned)
+
             self.bpm = self.freqs[idx2]
             self.bpms.append(self.bpm)
-            
+
             processed = self.butter_bandpass_filter(processed,0.8,3,self.fps,order = 3)
-            #ifft = np.fft.irfft(raw)
-        self.samples = processed # multiply the signal with 5 for easier to see in the plot
-        #TODO: find peaks to draw HR-like signal.
-        
-        # if(mask.shape[0]!=10): 
-        #     out = np.zeros_like(aligned_face)
-        #     mask = mask.astype(np.bool)
-        #     out[mask] = aligned_face[mask]
-        #     if(processed[-1]>np.mean(processed)):
-        #         out[mask,2] = 180 + processed[-1]*10
-        #     aligned_face[mask] = out[mask]
-            
-            
-        #cv2.imshow("face", face_frame)
-        #out = cv2.add(face_frame,out)
-        # else:
-            # cv2.imshow("face", face_frame)
+        self.samples = processed
         return True
     
     def reset(self):

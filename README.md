@@ -49,16 +49,17 @@ pip install -r requirements.txt
 
 **Manual Installation:**
 ```bash
-pip install numpy opencv-python scipy pyqt5 pyqtgraph mediapipe
+pip install numpy opencv-python scipy pyqt5 pyqtgraph "mediapipe==0.10.14" "protobuf>=4.21,<5"
 ```
 
 ### Required Packages
-- **MediaPipe** - face detection with 468 landmarks (required)
-- **OpenCV** (`cv2`) - computer vision and age/gender detection models
-- **NumPy** - numerical computing
-- **SciPy** - signal processing
-- **PyQt5** - GUI framework
-- **pyqtgraph** - real-time plotting
+- **MediaPipe** `==0.10.14` — face detection with 468 landmarks. Newer 0.10.x releases drop `mp.solutions` on Python 3.12 and will fail at startup
+- **protobuf** `>=4.21,<5` — protobuf 5+ breaks MediaPipe 0.10.14's FaceMesh init
+- **OpenCV** (`cv2`) — computer vision and age/gender detection models
+- **NumPy** — numerical computing
+- **SciPy** — signal processing
+- **PyQt5** — GUI framework
+- **pyqtgraph** — real-time plotting
 
 ## Usage
 
@@ -132,10 +133,23 @@ python run.py
 ## Troubleshooting
 
 ### MediaPipe Installation Issues
-If you see "DLL load failed" errors on Windows:
+
+**"MediaPipe is required but not available" / `module 'mediapipe' has no attribute 'solutions'`:**
+You installed a newer MediaPipe (e.g. 0.10.33) that doesn't expose `mp.solutions` on Python 3.12. Pin the version:
+```bash
+pip install "mediapipe==0.10.14"
+```
+
+**`AttributeError: 'FieldDescriptor' object has no attribute 'label'`:**
+protobuf is too new for MediaPipe 0.10.14. Downgrade:
+```bash
+pip install "protobuf>=4.21,<5"
+```
+
+**"DLL load failed" errors on Windows:**
 - Install Visual C++ Redistributable: https://aka.ms/vs/17/release/vc_redist.x64.exe
 - Restart your computer after installation
-- Python 3.8-3.11 recommended (3.12 may have compatibility issues)
+- Python 3.8–3.12 supported (3.8–3.11 smoothest; 3.12 works with the pinned versions above)
 
 ### Age/Gender Models
 If age/gender detection doesn't work:
